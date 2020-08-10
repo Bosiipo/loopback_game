@@ -7,7 +7,6 @@ export class Skill extends Entity {
   @property({
     type: 'string',
     id: true,
-    generated: true,
     default: () => uuid(),
   })
   id?: string;

@@ -6,6 +6,10 @@ import {
 } from '@loopback/repository';
 import {MongoDataSource} from '../datasources';
 import {Armor, Character, CharacterRelations, Skill, Weapon} from '../models';
+// import {Armor} from '../models/armor.model';
+// import {Character, CharacterRelations} from '../models/character.model';
+// import {Skill} from '../models/skill.model';
+// import {Weapon} from '../models/weapon.model';
 import {ArmorRepository} from './armor.repository';
 import {SkillRepository} from './skill.repository';
 import {WeaponRepository} from './weapon.repository';

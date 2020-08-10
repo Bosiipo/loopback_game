@@ -1,8 +1,11 @@
+import {authenticate, AuthenticationBindings} from '@loopback/authentication';
+import {inject} from '@loopback/core';
 import {
   Count,
   CountSchema,
   Filter,
   FilterExcludingWhere,
+  Getter,
   repository,
   Where,
 } from '@loopback/repository';
@@ -10,12 +13,23 @@ import {
   del,
   get,
   getModelSchemaRef,
+  HttpErrors,
   param,
   patch,
   post,
   put,
   requestBody,
 } from '@loopback/rest';
+import {MyAuthBindings} from '../authorization/keys';
+import {PermissionKey} from '../authorization/permission-key';
+import {JWTService} from '../authorization/services/JWT.service';
+import {
+  Credential,
+  CredentialsRequestBody,
+  MyUserProfile,
+  UserProfileSchema,
+  UserRequestBody,
+} from '../authorization/types';
 import {Character} from '../models';
 import {CharacterRepository} from '../repositories';
 
@@ -23,6 +37,10 @@ export class CharacterController {
   constructor(
     @repository(CharacterRepository)
     public characterRepository: CharacterRepository,
+    @inject(MyAuthBindings.TOKEN_SERVICE)
+    public jwtService: JWTService,
+    @inject.getter(AuthenticationBindings.CURRENT_USER)
+    public getCurrentUser: Getter<MyUserProfile>,
   ) {}
 
   @post('/characters', {
@@ -33,15 +51,54 @@ export class CharacterController {
       },
     },
   })
-  async create(@requestBody() character: Character): Promise<Character> {
-    // //add following lines
-    // let characterId = 1;
-    // while (await this.characterRepository.exists(characterId)) {
-    //   characterId++;
-    // }
-    // character.id = characterId;
-    //add above lines
-    return await this.characterRepository.create(character);
+  async create(
+    @requestBody(UserRequestBody) character: Character,
+  ): Promise<Character> {
+    character.permissions = [
+      PermissionKey.ViewOwnUser,
+      PermissionKey.CreateUser,
+      PermissionKey.UpdateOwnUser,
+      PermissionKey.DeleteOwnUser,
+    ];
+    if (await this.characterRepository.exists(character.email)) {
+      throw new HttpErrors.BadRequest(`This email already exists`);
+    } else {
+      const savedCharacter = await this.characterRepository.create(character);
+      delete savedCharacter.password;
+      return savedCharacter;
+    }
+  }
+
+  @post('/characters/login', {
+    responses: {
+      '200': {
+        description: 'Token',
+        content: {},
+      },
+    },
+  })
+  async login(
+    @requestBody(CredentialsRequestBody) credential: Credential,
+  ): Promise<{token: string}> {
+    const token = await this.jwtService.getToken(credential);
+    return {token};
+  }
+
+  @get('/characters/me', {
+    responses: {
+      '200': {
+        description: 'The current user profile',
+        content: {
+          'application/json': {
+            schema: UserProfileSchema,
+          },
+        },
+      },
+    },
+  })
+  @authenticate('jwt', {required: [PermissionKey.ViewOwnUser]})
+  async printCurrentUser(): Promise<MyUserProfile> {
+    return await this.getCurrentUser();
   }
 
   @get('/characters/count', {
@@ -164,6 +221,14 @@ export class CharacterController {
     },
   })
   async deleteById(@param.path.string('id') id: string): Promise<void> {
+    // Delete weapon armor and skill
+    await this.characterRepository.weapon(id).delete();
+    await this.characterRepository.armor(id).delete();
+    await this.characterRepository.skill(id).delete();
+
+    // Delete character itself
     await this.characterRepository.deleteById(id);
   }
+
+  // ADMIN!!!
 }

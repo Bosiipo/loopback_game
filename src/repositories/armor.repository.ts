@@ -4,9 +4,9 @@ import {
   DefaultCrudRepository,
   repository,
 } from '@loopback/repository';
+import {CharacterRepository} from '.';
 import {MongoDataSource} from '../datasources';
 import {Armor, ArmorRelations, Character} from '../models';
-import {CharacterRepository} from './character.repository';
 
 export class ArmorRepository extends DefaultCrudRepository<
   Armor,

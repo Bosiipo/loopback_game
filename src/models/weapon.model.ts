@@ -7,7 +7,6 @@ export class Weapon extends Entity {
   @property({
     type: 'string',
     id: true,
-    generated: true,
     default: () => uuid(),
   })
   id?: string;
